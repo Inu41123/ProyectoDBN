@@ -46,6 +46,10 @@
                 <a href="http://localhost:9001" target="_blank" class="btn btn-outline-info btn-sm" title="Consola Web de SILO S3">
                     <i class="bi bi-box-seam"></i> SILO S3 (:9001)
                 </a>
+                <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-1" onclick="abrirModalHealth()" title="Monitor de Disponibilidad de Servicios">
+                    <span class="spinner-grow spinner-grow-sm text-success" style="width: 0.5rem; height: 0.5rem;"></span>
+                    <span>Estado Nube</span>
+                </button>
             </div>
         </div>
     </nav>
@@ -58,6 +62,66 @@
                 <div class="d-flex">
                     <div class="toast-body" id="toastMessage">Listo</div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI SUMMARY ROW -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3 col-sm-6">
+                <div class="card p-3 border-secondary-subtle">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-secondary small text-uppercase fw-semibold">Usuarios Registrados</span>
+                            <h3 class="fw-bold mb-0 text-white mt-1" id="kpiUsuarios">-</h3>
+                            <small class="text-primary"><i class="bi bi-microsoft me-1"></i>SQL Server 2025</small>
+                        </div>
+                        <div class="p-3 bg-primary-subtle text-primary rounded-3 fs-3">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card p-3 border-secondary-subtle">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-secondary small text-uppercase fw-semibold">Archivos en Nube</span>
+                            <h3 class="fw-bold mb-0 text-white mt-1" id="kpiDocumentos">-</h3>
+                            <small class="text-success"><i class="bi bi-hdd-stack me-1"></i>MongoDB 8</small>
+                        </div>
+                        <div class="p-3 bg-success-subtle text-success rounded-3 fs-3">
+                            <i class="bi bi-folder-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card p-3 border-secondary-subtle">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-secondary small text-uppercase fw-semibold">Respaldos S3</span>
+                            <h3 class="fw-bold mb-0 text-white mt-1" id="kpiRespaldos">-</h3>
+                            <small class="text-info"><i class="bi bi-cloud-check me-1"></i>SILO S3</small>
+                        </div>
+                        <div class="p-3 bg-info-subtle text-info rounded-3 fs-3">
+                            <i class="bi bi-archive-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <div class="card p-3 border-secondary-subtle">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-secondary small text-uppercase fw-semibold">Espacio en S3</span>
+                            <h3 class="fw-bold mb-0 text-white mt-1" id="kpiTamano">-</h3>
+                            <small class="text-warning"><i class="bi bi-pie-chart me-1"></i>Almacenamiento</small>
+                        </div>
+                        <div class="p-3 bg-warning-subtle text-warning rounded-3 fs-3">
+                            <i class="bi bi-speedometer2"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -252,11 +316,12 @@
                                     <th>Tamaño</th>
                                     <th>Fecha de Generación</th>
                                     <th>Ruta en Bucket</th>
-                                    <th class="text-end">Estado</th>
+                                    <th>Estado</th>
+                                    <th class="text-end">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="tablaRespaldosBody">
-                                <tr><td colspan="6" class="text-center py-4 text-secondary">Cargando respaldos desde SILO S3...</td></tr>
+                                <tr><td colspan="7" class="text-center py-4 text-secondary">Cargando respaldos desde SILO S3...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -401,8 +466,41 @@
         </div>
     </div>
 
+    <!-- MODAL ESTADO DE LA NUBE (HEALTH MONITOR) -->
+    <div class="modal fade" id="modalHealth" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title d-flex align-items-center gap-2">
+                        <i class="bi bi-heart-pulse-fill text-success"></i>
+                        <span>Monitor de Disponibilidad de Servicios Cloud</span>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-secondary small">Ping y verificación en tiempo real a cada contenedor de la infraestructura:</span>
+                        <button class="btn btn-outline-light btn-sm" onclick="consultarSaludNube()">
+                            <i class="bi bi-arrow-clockwise me-1"></i> Verificar Ahora
+                        </button>
+                    </div>
+                    <div id="healthContent" class="row g-3">
+                        <div class="col-12 text-center py-4 text-secondary">
+                            <div class="spinner-border text-primary spinner-border-sm me-2"></div>
+                            Consultando servicios...
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <small class="text-secondary me-auto" id="healthLastCheck"></small>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/app.js?v=2.1"></script>
+    <script src="/static/js/app.js?v=2.2"></script>
 </body>
 </html>

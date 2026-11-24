@@ -327,16 +327,22 @@ async function cargarRespaldos() {
                     <td class="text-info font-monospace small">${f.size_human}</td>
                     <td class="text-secondary small">${f.timestamp}</td>
                     <td><code class="text-secondary small">${f.key}</code></td>
-                    <td class="text-end">
+                    <td>
                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
                             <i class="bi bi-check2-circle me-1"></i>En S3
                         </span>
                     </td>
+                    <td class="text-end">
+                        <a href="/api/backups/download/${encodeURIComponent(f.key)}" class="btn btn-sm btn-outline-info" title="Descargar Artefacto (.bak / .archive.gz)" download>
+                            <i class="bi bi-download"></i>
+                        </a>
+                    </td>
                 </tr>
             `;
         }).join('');
+        cargarEstadisticas();
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Error al consultar SILO S3: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">Error al consultar SILO S3: ${err.message}</td></tr>`;
     }
 }
 
@@ -373,18 +379,111 @@ async function dispararRespaldoManual() {
 }
 
 // =========================================================================
+// MÓDULO DE MÉTRICAS GLOBALES (KPIS)
+// =========================================================================
+async function cargarEstadisticas() {
+    try {
+        const res = await fetch('/api/stats');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        const elUsuarios = document.getElementById('kpiUsuarios');
+        const elDocumentos = document.getElementById('kpiDocumentos');
+        const elRespaldos = document.getElementById('kpiRespaldos');
+        const elTamano = document.getElementById('kpiTamano');
+
+        if (elUsuarios) elUsuarios.textContent = data.total_usuarios ?? 0;
+        if (elDocumentos) elDocumentos.textContent = data.total_documentos ?? 0;
+        if (elRespaldos) elRespaldos.textContent = data.total_respaldos ?? 0;
+        if (elTamano) elTamano.textContent = `${data.total_tamano_mb ?? 0} MB`;
+    } catch (e) {
+        console.warn('No se pudieron actualizar los KPIs:', e);
+    }
+}
+
+// =========================================================================
+// MÓDULO DE MONITOR DE SALUD DE SERVICIOS CLOUD
+// =========================================================================
+let modalHealthInstance = null;
+
+function abrirModalHealth() {
+    if (!modalHealthInstance) {
+        modalHealthInstance = new bootstrap.Modal(document.getElementById('modalHealth'));
+    }
+    modalHealthInstance.show();
+    consultarSaludNube();
+}
+
+async function consultarSaludNube() {
+    const container = document.getElementById('healthContent');
+    const lastCheck = document.getElementById('healthLastCheck');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="col-12 text-center py-4 text-secondary">
+            <div class="spinner-border text-primary spinner-border-sm me-2"></div>
+            Midiendo latencias y disponibilidad de los contenedores...
+        </div>
+    `;
+
+    try {
+        const res = await fetch('/api/health/detailed');
+        const data = await res.json();
+
+        if (lastCheck) {
+            lastCheck.textContent = `Última verificación: ${new Date(data.timestamp).toLocaleTimeString()}`;
+        }
+
+        container.innerHTML = data.servicios.map(s => {
+            const isOnline = s.status === 'online';
+            const badgeClass = isOnline ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle';
+            const statusIcon = isOnline ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger';
+
+            return `
+                <div class="col-md-6">
+                    <div class="card p-3 border-secondary h-100 bg-dark">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="fw-bold mb-0 text-white">${s.name}</h6>
+                                <small class="text-secondary">${s.tipo} (${s.puerto})</small>
+                            </div>
+                            <span class="badge ${badgeClass} px-2 py-1">
+                                <i class="bi ${statusIcon} me-1"></i>${isOnline ? 'ONLINE' : 'ERROR'}
+                            </span>
+                        </div>
+                        <p class="small text-light mb-2">${s.detalles}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-auto pt-2 border-top border-secondary-subtle">
+                            <small class="text-secondary">Latencia de respuesta:</small>
+                            <span class="badge bg-secondary font-monospace">${s.latencia_ms >= 0 ? s.latencia_ms + ' ms' : 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `
+            <div class="col-12 alert alert-danger py-3">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Error al consultar el monitor de salud: ${err.message}
+            </div>
+        `;
+    }
+}
+
+// =========================================================================
 // INICIALIZACIÓN AL CARGAR LA PÁGINA
 // =========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     cargarUsuarios();
     cargarDocumentos();
     cargarRespaldos();
+    cargarEstadisticas();
 
     // Recargar tabla de respaldos automáticamente al cambiar a la pestaña de Respaldos
     const backupTab = document.getElementById('backup-tab');
     if (backupTab) {
         backupTab.addEventListener('shown.bs.tab', () => {
             cargarRespaldos();
+            cargarEstadisticas();
         });
     }
 });

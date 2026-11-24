@@ -58,6 +58,45 @@ class BackupHandler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._set_headers(500)
                 self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+        elif self.path.startswith('/download'):
+            try:
+                import urllib.parse
+                query = urllib.parse.urlparse(self.path).query
+                params = urllib.parse.parse_qs(query)
+                key = params.get('key', [None])[0]
+                if not key:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({"error": "Parámetro 'key' requerido"}).encode('utf-8'))
+                    return
+
+                # Limpieza básica para evitar path traversal
+                clean_key = os.path.normpath(key).replace('\\', '/').lstrip('/')
+                filename = os.path.basename(clean_key)
+                tmp_file = f"/backups/dl_{filename}"
+
+                cmd = ["aws", "--endpoint-url", "http://minio:9000", "s3", "cp", f"s3://respaldosbd/{clean_key}", tmp_file]
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                if res.returncode != 0 or not os.path.exists(tmp_file):
+                    self._set_headers(404)
+                    self.wfile.write(json.dumps({"error": f"No se pudo descargar de S3: {res.stderr}"}).encode('utf-8'))
+                    return
+
+                file_size = os.path.getsize(tmp_file)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+                self.send_header('Content-Length', str(file_size))
+                self.end_headers()
+
+                with open(tmp_file, 'rb') as f:
+                    while chunk := f.read(65536):
+                        self.wfile.write(chunk)
+
+                if os.path.exists(tmp_file):
+                    os.remove(tmp_file)
+            except Exception as e:
+                self._set_headers(500)
+                self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
         else:
             self._set_headers(404)
             self.wfile.write(json.dumps({"error": "Ruta no encontrada"}).encode('utf-8'))

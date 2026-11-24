@@ -41,30 +41,28 @@ Sigan este orden exacto durante la presentación. Es fluido, visual y contundent
 
 ---
 
-### Paso 2: Cristian muestra la API y la persistencia de datos
+### Paso 2: Cristian muestra la API, Métricas y Persistencia de datos
 1. Abre el navegador en `http://localhost:8080/`.
-2. Muestra el **Dashboard Web**:
-   - En la sección **SQL Server**: Muestra la tabla de usuarios registrados (con los nombres de Héctor, Cristian y Elan ya sembrados). Agrega un nuevo usuario de prueba frente al profesor.
+2. Muestra el **Dashboard Web y KPIs**:
+   - En la parte superior, destaca las **4 Tarjetas de Métricas (KPIs)** en tiempo real: Total de Usuarios (SQL Server), Total de Archivos (MongoDB), Respaldos en SILO S3 y Espacio Ocupado en MB.
+   - Da clic en el botón superior **"🟢 Estado de la Nube"**: muestra el modal en vivo con el ping y latencias en milisegundos de los 4 contenedores (SQL Server, MongoDB, SILO S3 y Scheduler).
+   - En la sección **SQL Server**: Muestra la tabla de usuarios registrados (con los nombres de Héctor, Cristian y Elan ya sembrados). Agrega un nuevo usuario de prueba frente al profesor y muestra cómo el contador de usuarios sube al instante.
    - En la sección **MongoDB**: Sube un documento (un PDF o una imagen pequeña). Muestra que se guarda con su hash, tipo MIME y fecha, y dale clic a **"Ver Documento"** para que se abra en el navegador.
 3. Abre una pestaña en `http://localhost:8080/docs` (Swagger UI).
 4. **Qué decir:**
-   > *"Nuestra API central fue construida con FastAPI bajo estándares OpenAPI. Manejamos un enfoque políglota de persistencia: datos transaccionales de usuarios y accesos residen en SQL Server 2025 relacional con integridad referencial, mientras que los metadatos y el almacenamiento de archivos documentales se gestionan en MongoDB 8 NoSQL. El proxy NGINX redirige el tráfico y nos permite soportar archivos de hasta 100 MB."*
+   > *"Nuestra API central fue construida con FastAPI bajo estándares OpenAPI. Implementamos observabilidad en vivo: nuestro monitor de estado hace ping a cada contenedor calculando tiempos de respuesta en milisegundos. Manejamos un enfoque políglota de persistencia: datos transaccionales de usuarios y accesos residen en SQL Server 2025 relacional con integridad referencial, mientras que los metadatos y el almacenamiento de archivos documentales se gestionan en MongoDB 8 NoSQL. El proxy NGINX redirige el tráfico y nos permite soportar archivos de hasta 100 MB."*
 
 ---
 
-### Paso 3: Elan demuestra los respaldos en SILO S3
-1. Abre el navegador en la consola de SILO: `http://localhost:9001`.
-   - **Usuario:** `minioadmin`
-   - **Contraseña:** `CampusCloud2025!`
-2. Entra a **Buckets** -> `respaldosbd`. Muestra las carpetas `mongodb/` y `sqlserver/`.
-3. Vuelve a la terminal y ejecuta el respaldo en vivo frente al docente:
-   ```powershell
-   docker exec DoubleCloud-backup-scheduler sh /scripts/backup-semanal.sh
-   ```
-4. Muestra la salida con `FIN: ... errores=0`.
-5. Regresa a SILO y refresca la página: el nuevo archivo `.archive.gz` y el archivo `.bak` aparecen con la hora exacta recién creada.
-6. **Qué decir:**
-   > *"Para el sistema de respaldos eliminamos intermediarios pesados y construimos un agente dedicado en Linux con el demonio crond programado cada domingo a las 2:00 AM CST. Este contenedor ejecuta scripts desacoplados usando las herramientas oficiales mongodump y sqlcmd, verifica la integridad del respaldo con CHECKSUM y RESTORE VERIFYONLY, y finalmente transfiere los artefactos cifrados directamente a SILO mediante el cliente oficial AWS CLI v2."*
+### Paso 3: Elan demuestra los respaldos en SILO S3 y la recuperación
+1. En el mismo Dashboard en `http://localhost:8080/`, entra a la pestaña **"☁️ Respaldos Cloud"**.
+2. Presiona el botón amarillo **"⚡ Ejecutar Respaldo Manual Ahora"**:
+   - Muestra cómo se abre la **terminal integrada** en la web mostrando el progreso en vivo de `backup-semanal.sh`, el volcado de Mongo y el checksum de SQL Server.
+   - La tabla de respaldos se actualiza sola al terminar mostrando los nuevos archivos `.bak` y `.archive.gz`.
+3. Dale clic al icono de **Descarga (📥)** de cualquiera de los respaldos: el archivo se descarga en vivo a la computadora demostrando que los artefactos son recuperables de inmediato.
+4. Opcional: Abre el navegador en la consola de SILO: `http://localhost:9001` (`minioadmin` / `CampusCloud2025!`) y muestra el bucket `respaldosbd` con las carpetas `mongodb/` y `sqlserver/`.
+5. **Qué decir:**
+   > *"Para el sistema de respaldos eliminamos intermediarios pesados y construimos un agente dedicado en Linux con el demonio crond programado cada domingo a las 2:00 AM CST. Este contenedor ejecuta scripts desacoplados usando las herramientas oficiales mongodump y sqlcmd, verifica la integridad del respaldo con CHECKSUM y RESTORE VERIFYONLY, y finalmente transfiere los artefactos cifrados directamente a SILO mediante el cliente oficial AWS CLI v2. Además, integramos endpoints de descarga y monitoreo directo para simular recuperación ante desastres."*
 
 ---
 

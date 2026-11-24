@@ -1,7 +1,8 @@
 import os
+import time
 import requests
 from fastapi import FastAPI, HTTPException, Request, Query, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
@@ -361,3 +362,182 @@ def ejecutar_respaldo_manual():
         return resp.json()
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=503, detail=f"Error de comunicación con el agente backup-scheduler: {str(e)}")
+
+@app.get("/api/backups/download/{key:path}")
+def descargar_respaldo(key: str):
+    """Descarga directamente un archivo de respaldo desde SILO S3."""
+    try:
+        url = f"http://backup-scheduler:8088/download?key={key}"
+        req = requests.get(url, stream=True, timeout=60)
+        if req.status_code != 200:
+            raise HTTPException(status_code=req.status_code, detail="No se pudo obtener el archivo del almacenamiento S3")
+        
+        filename = os.path.basename(key)
+        return StreamingResponse(
+            req.iter_content(chunk_size=65536),
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al descargar respaldo: {str(e)}")
+
+# =========================================================================
+# MONITOR DE SALUD DETALLADO Y MÉTRICAS (KPIS)
+# =========================================================================
+@app.get("/api/stats")
+def obtener_estadisticas():
+    """Retorna las métricas y conteos en vivo de todos los motores para los KPIs."""
+    total_usuarios = 0
+    total_documentos = 0
+    total_respaldos = 0
+    total_tamano_bytes = 0
+
+    # 1. Conteo SQL Server
+    try:
+        conn = get_sql_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT COUNT(*) AS total FROM Usuarios;")
+            row = cursor.fetchone()
+            if row and "total" in row:
+                total_usuarios = row["total"]
+        conn.close()
+    except Exception:
+        pass
+
+    # 2. Conteo MongoDB
+    try:
+        col = get_mongo_collection()
+        total_documentos = col.count_documents({})
+    except Exception:
+        pass
+
+    # 3. Conteo S3 Respaldos
+    try:
+        resp = requests.get("http://backup-scheduler:8088/list", timeout=5)
+        if resp.status_code == 200:
+            data = resp.json()
+            files = data.get("files", [])
+            total_respaldos = len(files)
+            total_tamano_bytes = sum(f.get("size_bytes", 0) for f in files)
+    except Exception:
+        pass
+
+    tamano_mb = round(total_tamano_bytes / (1024 * 1024), 2)
+    return {
+        "total_usuarios": total_usuarios,
+        "total_documentos": total_documentos,
+        "total_respaldos": total_respaldos,
+        "total_tamano_mb": tamano_mb,
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api/health/detailed")
+def health_detailed():
+    """Monitorea la latencia y disponibilidad en tiempo real de los 4 pilares de la nube."""
+    servicios = []
+
+    # 1. SQL Server 2025
+    t0 = time.time()
+    try:
+        conn = get_sql_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 AS ok;")
+            cur.fetchone()
+        conn.close()
+        lat = round((time.time() - t0) * 1000, 1)
+        servicios.append({
+            "name": "Microsoft SQL Server 2025",
+            "tipo": "Relacional (Transaccional)",
+            "puerto": "1434:1433",
+            "status": "online",
+            "latencia_ms": lat,
+            "detalles": "Base CampusCloudDB activa y autenticada"
+        })
+    except Exception as e:
+        servicios.append({
+            "name": "Microsoft SQL Server 2025",
+            "tipo": "Relacional (Transaccional)",
+            "puerto": "1434:1433",
+            "status": "error",
+            "latencia_ms": -1,
+            "detalles": str(e)
+        })
+
+    # 2. MongoDB 8
+    t0 = time.time()
+    try:
+        col = get_mongo_collection()
+        col.database.command("ping")
+        lat = round((time.time() - t0) * 1000, 1)
+        servicios.append({
+            "name": "MongoDB 8 Community",
+            "tipo": "NoSQL Documental",
+            "puerto": "27018:27017",
+            "status": "online",
+            "latencia_ms": lat,
+            "detalles": "WiredTiger Engine activo con colección documentos"
+        })
+    except Exception as e:
+        servicios.append({
+            "name": "MongoDB 8 Community",
+            "tipo": "NoSQL Documental",
+            "puerto": "27018:27017",
+            "status": "error",
+            "latencia_ms": -1,
+            "detalles": str(e)
+        })
+
+    # 3. SILO S3
+    t0 = time.time()
+    try:
+        r = requests.get("http://minio:9000/minio/health/live", timeout=3)
+        lat = round((time.time() - t0) * 1000, 1)
+        servicios.append({
+            "name": "SILO S3 Storage",
+            "tipo": "Almacenamiento de Objetos",
+            "puerto": "9000 (API) / 9001 (Web)",
+            "status": "online" if r.status_code == 200 else "warning",
+            "latencia_ms": lat,
+            "detalles": "Bucket 'respaldosbd' operativo con API S3"
+        })
+    except Exception as e:
+        servicios.append({
+            "name": "SILO S3 Storage",
+            "tipo": "Almacenamiento de Objetos",
+            "puerto": "9000 (API) / 9001 (Web)",
+            "status": "error",
+            "latencia_ms": -1,
+            "detalles": str(e)
+        })
+
+    # 4. Backup Scheduler
+    t0 = time.time()
+    try:
+        r = requests.get("http://backup-scheduler:8088/health", timeout=3)
+        lat = round((time.time() - t0) * 1000, 1)
+        servicios.append({
+            "name": "Backup Scheduler Agent",
+            "tipo": "Automatización y Cron",
+            "puerto": "Interno :8088",
+            "status": "online" if r.status_code == 200 else "warning",
+            "latencia_ms": lat,
+            "detalles": "Cronie activo (Dom 02:00 AM CST) y AWS CLI v2"
+        })
+    except Exception as e:
+        servicios.append({
+            "name": "Backup Scheduler Agent",
+            "tipo": "Automatización y Cron",
+            "puerto": "Interno :8088",
+            "status": "error",
+            "latencia_ms": -1,
+            "detalles": str(e)
+        })
+
+    todos_online = all(s["status"] == "online" for s in servicios)
+    return {
+        "status": "healthy" if todos_online else "degraded",
+        "timestamp": datetime.now().isoformat(),
+        "servicios": servicios
+    }
