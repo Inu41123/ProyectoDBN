@@ -72,6 +72,7 @@ services:
     container_name: DoubleCloud-backup-scheduler
     hostname: backup-scheduler
     restart: unless-stopped
+    command: sh -c "python3 /scripts/server.py & crond -n"
     depends_on:
       - mongodb
       - sqlserver

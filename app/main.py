@@ -1,4 +1,5 @@
 import os
+import requests
 from fastapi import FastAPI, HTTPException, Request, Query, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -337,3 +338,26 @@ def eliminar_documento(doc_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar en MongoDB: {str(e)}")
+
+# =========================================================================
+# GESTIÓN Y AUTOMATIZACIÓN DE RESPALDOS CLOUD (S3 / SCHEDULER)
+# =========================================================================
+@app.get("/api/backups")
+def listar_respaldos():
+    """Consulta la lista de respaldos almacenados en el bucket S3 (SILO)."""
+    try:
+        resp = requests.get("http://backup-scheduler:8088/list", timeout=15)
+        if resp.status_code == 200:
+            return resp.json()
+        raise HTTPException(status_code=resp.status_code, detail="Error al consultar el agente de respaldos")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=503, detail=f"No se pudo conectar con el agente backup-scheduler: {str(e)}")
+
+@app.post("/api/backups/manual")
+def ejecutar_respaldo_manual():
+    """Dispara inmediatamente la ejecución del script de respaldo semanal hacia S3."""
+    try:
+        resp = requests.post("http://backup-scheduler:8088/run", timeout=120)
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=503, detail=f"Error de comunicación con el agente backup-scheduler: {str(e)}")

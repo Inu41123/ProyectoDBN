@@ -295,9 +295,88 @@ async function eliminarDocumento(id) {
 }
 
 // =========================================================================
+// MÓDULO RESPALDOS CLOUD (SILO S3 & SCHEDULER)
+// =========================================================================
+async function cargarRespaldos() {
+    const tbody = document.getElementById('tablaRespaldosBody');
+    if (!tbody) return;
+    try {
+        const res = await fetch('/api/backups');
+        const data = await res.json();
+
+        if (!data.files || data.files.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-secondary">No hay respaldos almacenados en SILO S3 todavía.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = data.files.map(f => {
+            const isSql = f.engine.includes('SQL Server');
+            const badgeClass = isSql ? 'bg-primary-subtle text-primary border border-primary-subtle' : 'bg-success-subtle text-success border border-success-subtle';
+            const iconClass = isSql ? 'bi-database' : 'bi-hdd-stack';
+
+            return `
+                <tr>
+                    <td class="fw-semibold text-white">
+                        <i class="bi bi-file-earmark-zip text-warning me-2"></i>${f.filename}
+                    </td>
+                    <td>
+                        <span class="badge ${badgeClass} px-2 py-1">
+                            <i class="bi ${iconClass} me-1"></i>${f.engine}
+                        </span>
+                    </td>
+                    <td class="text-info font-monospace small">${f.size_human}</td>
+                    <td class="text-secondary small">${f.timestamp}</td>
+                    <td><code class="text-secondary small">${f.key}</code></td>
+                    <td class="text-end">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                            <i class="bi bi-check2-circle me-1"></i>En S3
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Error al consultar SILO S3: ${err.message}</td></tr>`;
+    }
+}
+
+async function dispararRespaldoManual() {
+    const btn = document.getElementById('btnEjecutarBackup');
+    const terminalContainer = document.getElementById('terminalContainer');
+    const terminalLog = document.getElementById('terminalLog');
+
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Ejecutando respaldo en el agente...`;
+    
+    terminalContainer.style.display = 'block';
+    terminalLog.textContent = 'Iniciando respaldo en contenedor backup-scheduler...\nEjecutando /scripts/backup-semanal.sh...\nEsperando conexión y subida a SILO S3...';
+
+    try {
+        const res = await fetch('/api/backups/manual', { method: 'POST' });
+        const data = await res.json();
+
+        if (data.success) {
+            terminalLog.textContent = data.output || 'Respaldo ejecutado con éxito.';
+            showToast('¡Respaldo de SQL Server y MongoDB completado y subido a S3!');
+        } else {
+            terminalLog.textContent = (data.output || '') + '\n' + (data.error || 'Error al ejecutar el respaldo');
+            showToast('Hubo un error al ejecutar el respaldo.', true);
+        }
+        await cargarRespaldos();
+    } catch (err) {
+        terminalLog.textContent += `\nError de red: ${err.message}`;
+        showToast(`Error al contactar con la API: ${err.message}`, true);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="bi bi-lightning-charge-fill me-1"></i> Ejecutar Respaldo Manual Ahora`;
+    }
+}
+
+// =========================================================================
 // INICIALIZACIÓN AL CARGAR LA PÁGINA
 // =========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     cargarUsuarios();
     cargarDocumentos();
+    cargarRespaldos();
 });

@@ -43,11 +43,8 @@
                 <a href="/docs" target="_blank" class="btn btn-outline-light btn-sm" title="Documentación Interactiva Swagger">
                     <i class="bi bi-file-code"></i> Swagger API
                 </a>
-                <a href="http://localhost:9001" target="_blank" class="btn btn-outline-info btn-sm">
+                <a href="http://localhost:9001" target="_blank" class="btn btn-outline-info btn-sm" title="Consola Web de SILO S3">
                     <i class="bi bi-box-seam"></i> SILO S3 (:9001)
-                </a>
-                <a href="http://localhost:8200" target="_blank" class="btn btn-outline-warning btn-sm">
-                    <i class="bi bi-shield-lock"></i> Duplicati (:8200)
                 </a>
             </div>
         </div>
@@ -75,6 +72,11 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link px-4 py-3" id="mongo-tab" data-bs-toggle="tab" data-bs-target="#mongo-pane" type="button" role="tab">
                     <i class="bi bi-files me-2 text-success"></i> Documentos y Ficheros Reales (MongoDB 8)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link px-4 py-3" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup-pane" type="button" role="tab" onclick="cargarRespaldos()">
+                    <i class="bi bi-cloud-arrow-up me-2 text-warning"></i> Respaldos Cloud (SILO S3 & Scheduler)
                 </button>
             </li>
         </ul>
@@ -150,6 +152,111 @@
                             </thead>
                             <tbody id="tablaDocumentosBody">
                                 <tr><td colspan="8" class="text-center py-4 text-secondary">Cargando documentos...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANE 3: RESPALDOS CLOUD (SILO S3 & SCHEDULER) -->
+            <div class="tab-pane fade" id="backup-pane" role="tabpanel">
+                <div class="row g-3 mb-4">
+                    <!-- Tarjeta 1: Estado del Agente Scheduler -->
+                    <div class="col-md-4">
+                        <div class="card p-3 h-100">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="p-3 rounded-3 bg-primary-subtle text-primary fs-3">
+                                    <i class="bi bi-clock-history"></i>
+                                </div>
+                                <div>
+                                    <h6 class="text-secondary small text-uppercase mb-1">Agente Scheduler</h6>
+                                    <h5 class="fw-bold mb-0 text-white">Cronie (Linux)</h5>
+                                    <span class="badge bg-success-subtle text-success mt-1">
+                                        <i class="bi bi-calendar-check me-1"></i> Dom 02:00 AM CST
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Tarjeta 2: SILO S3 Bucket -->
+                    <div class="col-md-4">
+                        <div class="card p-3 h-100">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="p-3 rounded-3 bg-info-subtle text-info fs-3">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                </div>
+                                <div>
+                                    <h6 class="text-secondary small text-uppercase mb-1">Almacenamiento S3</h6>
+                                    <h5 class="fw-bold mb-0 text-white">s3://respaldosbd/</h5>
+                                    <span class="badge bg-info-subtle text-info mt-1">
+                                        <i class="bi bi-hdd-network me-1"></i> SILO (:9000)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Tarjeta 3: Integridad y Motores -->
+                    <div class="col-md-4">
+                        <div class="card p-3 h-100">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="p-3 rounded-3 bg-warning-subtle text-warning fs-3">
+                                    <i class="bi bi-shield-check"></i>
+                                </div>
+                                <div>
+                                    <h6 class="text-secondary small text-uppercase mb-1">Integridad Validada</h6>
+                                    <h5 class="fw-bold mb-0 text-white">CHECKSUM + VERIFY</h5>
+                                    <span class="badge bg-warning-subtle text-warning mt-1">
+                                        SQL Server + Mongo 8
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4 mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                        <div>
+                            <h4 class="fw-bold mb-1"><i class="bi bi-cloud-arrow-up text-warning me-2"></i>Centro de Control de Respaldos</h4>
+                            <p class="text-secondary small mb-0">Dispara respaldos en tiempo real hacia SILO S3 y monitorea los artefactos disponibles para recuperación ante desastres.</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button id="btnEjecutarBackup" class="btn btn-warning btn-sm px-3 fw-semibold" onclick="dispararRespaldoManual()">
+                                <i class="bi bi-lightning-charge-fill me-1"></i> Ejecutar Respaldo Manual Ahora
+                            </button>
+                            <button class="btn btn-outline-light btn-sm px-3" onclick="cargarRespaldos()">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Refrescar S3
+                            </button>
+                            <a href="http://localhost:9001" target="_blank" class="btn btn-outline-info btn-sm px-3">
+                                <i class="bi bi-box-arrow-up-right me-1"></i> Consola SILO S3
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Terminal Log View (Colapsable) -->
+                    <div id="terminalContainer" class="mb-3" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center bg-dark px-3 py-1 border border-secondary border-bottom-0 rounded-top">
+                            <small class="text-secondary font-monospace"><i class="bi bi-terminal me-1"></i> Salida de Ejecución: backup-semanal.sh</small>
+                            <button class="btn btn-sm text-secondary p-0" onclick="document.getElementById('terminalContainer').style.display='none'"><i class="bi bi-x"></i></button>
+                        </div>
+                        <pre id="terminalLog" class="p-3 bg-black text-success border border-secondary rounded-bottom font-monospace small mb-0" style="max-height: 220px; overflow-y: auto; white-space: pre-wrap;"></pre>
+                    </div>
+
+                    <!-- Tabla de Respaldos S3 -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Artefacto / Archivo S3</th>
+                                    <th>Motor de Base de Datos</th>
+                                    <th>Tamaño</th>
+                                    <th>Fecha de Generación</th>
+                                    <th>Ruta en Bucket</th>
+                                    <th class="text-end">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaRespaldosBody">
+                                <tr><td colspan="6" class="text-center py-4 text-secondary">Cargando respaldos desde SILO S3...</td></tr>
                             </tbody>
                         </table>
                     </div>
