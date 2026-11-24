@@ -379,4 +379,12 @@ document.addEventListener('DOMContentLoaded', () => {
     cargarUsuarios();
     cargarDocumentos();
     cargarRespaldos();
+
+    // Recargar tabla de respaldos automáticamente al cambiar a la pestaña de Respaldos
+    const backupTab = document.getElementById('backup-tab');
+    if (backupTab) {
+        backupTab.addEventListener('shown.bs.tab', () => {
+            cargarRespaldos();
+        });
+    }
 });
