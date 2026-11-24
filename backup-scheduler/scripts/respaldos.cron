@@ -1,0 +1,1 @@
+0 2 * * 0 root /bin/sh /scripts/ejecutar-cron.sh >> /backups/backup-semanal.log 2>&1

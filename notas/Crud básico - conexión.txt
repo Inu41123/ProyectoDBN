@@ -1,0 +1,43 @@
+Crud básico - conexión y que haga las operaciones en los gestores seleccionados
+
+
+Uso de api por proxy inverso y consumimos apis desde el Ngix
+
+
+servicio s3 para el almacenamiento de dato
+
+- podemos montarlas api en el Docker - 
+
+usamos minio asi de hevos, el pedo es que la actual se supone que tiene un pedo
+que el pull te indica que esa versión ya no existe, la alternativa es silo
+
+el respaldo de archivo
+
+
+Lunes la parte de abajo, lo podemos hacer si nos da la gana - osese si hay que hacer esa mamada
+
+el duplicate encripta y manda
+
+SILO se queda, lo demás se puede remplazar únicamente la idea es hacerlo automatico de manera fácil
+
+se puede implementar de manera web, haces como el programador de tareas visual para que los backsean manuales
+y que lo puedas programar de cuanto tiempo se hace
+
+
+silo nomas recibe, duplication es el encargado de darle seguridad a los backups
+
+
+no hay que cambiar conceptos, el duplicati no hace la labor del duplicati, podemos usar IA para no usar el programador de
+tarea de Windows, en caso de hacer app, que sea algo interno en Docker
+
+
+Hetor eq-1 integrantes
+Cristian
+Elan
+
+
+SQL server
+MongoDB
+
+
+son 3 mamadas, infraestructura y crud 60%, reporte 40%

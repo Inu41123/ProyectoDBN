@@ -1,0 +1,5 @@
+ENTREGA DOCENTE - VERSION DE REFERENCIA, NO CLON EXACTO DEL ENTORNO PROBADO.
+El Dockerfile original de la sesion NO estaba disponible como archivo. El incluido es una reconstruccion didactica que NO ha sido construida ni verificada en Docker en este entorno. El Compose actual tampoco fue adjuntado: el incluido es una propuesta nueva, no el archivo real del usuario. No presentar el proyecto como garantizado sin realizar pruebas en un equipo limpio.
+Los siete archivos de scripts se reconstruyeron a partir del manual PDF anterior y de la configuracion conversada. Se verifico su presencia, no su ejecucion en Docker.
+Los respaldos manuales de cuatro motores se habian validado en el entorno original. El cron dominical aun NO habia corrido de forma programada al cerrar la sesion.
+Se excluyen Cassandra y Neo4j. Nunca ejecutar docker compose down -v en una instalacion con datos.

@@ -1,0 +1,57 @@
+services:
+  mongodb:
+    image: mongo:8
+    container_name: DoubleCloud-mongodb
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: Mongo123
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - nosql-net
+
+  neo4j:
+    image: neo4j:latest
+    container_name: DoubleCloud-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: neo4j/Neo4j2025!Campus
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - nosql-net
+
+  cassandra:
+    image: cassandra:latest
+    container_name: DoubleCloud-cassandra
+    restart: unless-stopped
+    ports:
+      - "9042:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: "DoubleCloudCluster"
+      CASSANDRA_DC: "datacenter1"
+      CASSANDRA_RACK: "rack1"
+      CASSANDRA_ENDPOINT_SNITCH: "GossipingPropertyFileSnitch"
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+      - ./cassandra-auth.yaml:/etc/cassandra/cassandra.yaml
+    networks:
+      - nosql-net
+
+networks:
+  nosql-net:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  neo4j_data:
+  neo4j_logs:
+  cassandra_data:
+

@@ -1,0 +1,161 @@
+name: doublecloud
+
+services:
+  # =========================================================================
+  # 1. GESTORES DE BASE DE DATOS (ALCANCE EQUIPO 1: MONGO Y SQL SERVER)
+  # =========================================================================
+  mongodb:
+    image: mongo:8
+    container_name: DoubleCloud-mongodb
+    hostname: mongodb
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      DoubleCloud-net:
+        aliases:
+          - mongodb
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    container_name: DoubleCloud-sqlserver
+    hostname: sqlserver
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1434:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - sqlserver_backup:/var/opt/mssql/backup
+    networks:
+      DoubleCloud-net:
+        aliases:
+          - sqlserver
+
+  # =========================================================================
+  # 2. ALMACENAMIENTO DE OBJETOS COMPATIBLE CON S3 (SILO / MINIO)
+  # =========================================================================
+  minio:
+    image: pgsty/silo:latest
+    container_name: DoubleCloud-silo
+    hostname: minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - silo_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      DoubleCloud-net:
+        aliases:
+          - minio
+
+  # =========================================================================
+  # 3. AGENTE PROGRAMADOR DE RESPALDOS (CRON + CLIENTES + AWS CLI)
+  # =========================================================================
+  backup-scheduler:
+    build:
+      context: ./backup-scheduler
+      dockerfile: Dockerfile
+    container_name: DoubleCloud-backup-scheduler
+    hostname: backup-scheduler
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+      - sqlserver
+      - minio
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_DATABASE: ${MSSQL_DATABASE:-CampusCloudDB}
+      TZ: America/Mexico_City
+    volumes:
+      - backup_temp:/backups
+      - ./backup-scheduler/scripts:/scripts:ro
+      - sqlserver_backup:/sqlserver-backups
+      - ./backup-scheduler/scripts/respaldos.cron:/etc/cron.d/respaldos:ro
+    networks:
+      - DoubleCloud-net
+
+  # =========================================================================
+  # 4. APLICACIÓN CENTRAL (BACKEND API PYTHON - FASTAPI + SWAGGER)
+  # =========================================================================
+  api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: DoubleCloud-api
+    hostname: api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      SQL_SERVER_HOST: sqlserver
+      SQL_SERVER_PORT: 1433
+      SQL_SERVER_USER: sa
+      SQL_SERVER_PASSWORD: ${MSSQL_SA_PASSWORD}
+      SQL_SERVER_DB: ${MSSQL_DATABASE:-CampusCloudDB}
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_USER: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_DB: campuscloud
+    volumes:
+      - ./app:/app
+      - ./app/uploads:/app/uploads
+    depends_on:
+      - sqlserver
+      - mongodb
+    networks:
+      DoubleCloud-net:
+        aliases:
+          - api
+
+  # =========================================================================
+  # 5. GATEWAY Y PROXY INVERSO (NGINX)
+  # =========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: DoubleCloud-nginx
+    hostname: nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+    networks:
+      - DoubleCloud-net
+
+# =========================================================================
+# RED Y VOLÚMENES PERSISTENTES
+# =========================================================================
+networks:
+  DoubleCloud-net:
+    name: doublecloud_DoubleCloud-net
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  sqlserver_data:
+  sqlserver_backup:
+  silo_data:
+  backup_temp:

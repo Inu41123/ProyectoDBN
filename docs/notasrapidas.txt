@@ -1,0 +1,49 @@
+vamos a usar un contenedor que funcione como un programador de tareas
+
+
+el crud son los gestores
+para la demostración de las otras mierdas es con lso 4
+
+	- revisar el manual
+
+que va autilizar - revisar los archivos porque tenemos que trabajar con eso
+el shellder se le mete un cron
+
+todos los .sh ya los tenemos en el drive, ocupar esas madres
+
+tienen las funciones de hacer cosas, y básicamente van a sacar el back y mete una carpeta y esta como que en red
+
+esa carpeta la tenemos en el Docker que lleva crow, y esa cosa es accesible desde Windows, 
+
+y luego saca los backs desde silo
+
+como reto habría que verse una automatización dentro de neo4j, y para cassandra sin necesidad de otro contenedor
+que se hagan dentro de SU contenedor, habría que automatizarlo porque no puede hacer el back prendido de webos tiene que estar apagado
+y ningún aplicativo, coigos Python ni nada el puro código sh
+eso no lo vamos a hacer
+
+
+EVALUACION:
+
+ENTENDER LA SIMULACION DE LA NUBE
+
+si es por ejemplo ejecuta tal porque hace tal cosa y puede tronar la infraestructura
+
+no modificar a menos que sea versionamiento, se llama Docker file
+trae toda la configuración de carpetas, paquetes y pues eso, es un yml con mas cosas, como las tols de mongo
+esa mamada descarga todas sus herramientas de los 4 gestores de esa cosa y trae la zona horaria
+
+
+donde están los archivos, el cron, la api y que donde están esas cosas ese creo que es el swagger
+
+nos olvidamos del reporte si exponemos bien
+
+
+
+
+
+
+
+
+
+

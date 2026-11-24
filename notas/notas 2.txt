@@ -1,0 +1,11 @@
+notas 2
+
+En pocas palabras es esto Infraestructura y Red (campuscloud-net):
+>    * Levantaré los contenedores de SQL Server en el puerto 1434 y MongoDB en el puerto 27018, conectados dentro de la red interna campuscloud-net.
+>    * Todo el tráfico web entrará por NGINX (:8080) hacia mi aplicación central en Python (Flask) (:8000).
+>  * Aplicación Web y Endpoints (CRUD):
+>    * Armé una app en Python con su interfaz web y endpoints REST (/api/sql y /api/mongo) ya conectados a ambas bases de datos para insertar, consultar, actualizar y eliminar registros (Administradores, Docentes y Estudiantes).
+>  * Flujo de Respaldos Automáticos (SILO / MinIO):
+>    * La misma app de Python tiene un programador automático (APScheduler) configurado para los domingos a la 01:00 AM (y también botón manual) que exporta los respaldos (BACKUP DATABASE en .bak para SQL Server y mongodump en .gz para MongoDB) directo a la carpeta /backups/exportados.
+>    * De ahí los toma Duplicati (:8200) los domingos a las 03:00 AM para comprimirlos y subirlos al almacenamiento S3 en MinIO / SILO (:9000 / :9001), dejando lista la carpeta /backups/restaurados para pruebas de recuperación.
+conectar tus gestores a la misma red (campuscloud-net) o usar la misma instancia de MinIO y Duplicati el docker-compose.yml base y que tus respaldos caigan en la misma carpeta /backups/exportados con el mismo horario.
